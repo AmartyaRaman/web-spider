@@ -7,6 +7,7 @@ import { constants, access } from 'fs'
 import { extname, join } from 'path'
 import { mkdirp } from 'mkdirp'
 import slug from 'slug'
+import { Parser } from 'htmlparser2'
 
 export function exists(filePath, cb) {
   access(filePath, constants.F_OK, err =>{
@@ -72,4 +73,26 @@ export function recursiveMkdir(path, cb) {
   mkdirp(path)
     .then(() => cb(null))
     .catch(e => cb(e))
+}
+
+export function getPageLinks(currentUrl, body) {
+  const url = new URL(currentUrl)
+  const internalLinks = []
+
+  const parser = new Parser({
+    onopentag(name, attr) {
+      if (name === 'a' && attr.href) {
+        const newUrl = new URL(attr.href, url)
+        if (
+          newUrl.pathname !== url.pathname &&
+          newUrl.hostname === url.hostname
+        ) {
+          internalLinks.push(newUrl.href)
+        }
+      } 
+    }
+  })
+  parser.end(body)
+
+  return internalLinks
 }

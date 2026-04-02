@@ -1,6 +1,6 @@
-import { writeFile } from 'node:fs'
+import { readFile, writeFile } from 'node:fs'
 import { dirname } from 'node:path'
-import { exists, get, recursiveMkdir, urlToFilename } from './utils.js'
+import { exists, get, recursiveMkdir, urlToFilename, getPageLinks } from './utils.js'
 
 function saveFile(filename, content, cb) {
   recursiveMkdir(dirname(filename), err => {
@@ -26,20 +26,68 @@ function download(url, filename, cb) {
   })
 }
 
-export function spider(url, cb) {
-  const filename = urlToFilename(url)
-  exists(filename, (err, alreadyExists) => {
-    if (err) {
-      return cb(err)
+function spiderLinks(currentUrl, body, maxDepth, cb) {
+  if (maxDepth === 0) {
+    // To prevent Zalgo, this function is designed to always
+    // invoke its callback asynchronously.
+    return process.nextTick(cb)
+  }
+
+  const links = getPageLinks(currentUrl, body)
+  if (links.length === 0) {
+    return process.nextTick(cb)
+  }
+
+  function iterate(index) {
+    if (index === links.length) {
+      return cb()
     }
-    if (alreadyExists) {
-      return cb(null, filename, false)
-    }
-    download(url, filename, err => {
+
+    spider(links[index], maxDepth - 1, err => {
       if (err) {
         return cb(err)
       }
-      cb(null, filename, true)
+      iterate(index + 1)
+    })
+  }
+
+  iterate(0)
+}
+
+export function spider(url, maxDepth, cb) {
+  const filename = urlToFilename(url)
+
+  exists(filename, (err, alreadyExists) => {
+    if (err) {
+      // error checking the file
+      return cb(err)
+    }
+
+    if (alreadyExists) {
+      if (!filename.endsWith('.html')) {
+        return cb()
+      }
+      return readFile(filename, 'utf8', (err, fileContent) => {
+        if (err) {
+          // error reading the file
+          return cb(err)
+        }
+        return spiderLinks(url, fileContent, maxDepth, cb)
+      })
+    }
+
+    // The file does not exist, download it
+    download(url, filename, (err, fileContent) => {
+      if (err) {
+        // error downloading the file
+        return cb(err)
+      }
+      // if the file is an HTML file, spider it
+      if (filename.endsWith('.html')) {
+        return spiderLinks(url, fileContent.toString('utf8'), maxDepth, cb)
+      }
+      // otherwise, stop here
+      return cb()
     })
   })
 }
