@@ -66,6 +66,8 @@ function spiderLinks(currentUrl, body, maxDepth, cb) {
 
   }
 
+  // As the spider is asynchronous function that uses callback
+  // using a for loop starts all the downlaod at once
   for (const link of links) {
     spider(link, maxDepth - 1, done)
   }
