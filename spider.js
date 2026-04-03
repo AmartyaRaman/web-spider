@@ -38,23 +38,47 @@ function spiderLinks(currentUrl, body, maxDepth, cb) {
     return process.nextTick(cb)
   }
 
-  function iterate(index) {
-    if (index === links.length) {
+  // function iterate(index) {
+  //   if (index === links.length) {
+  //     return cb()
+  //   }
+
+  //   spider(links[index], maxDepth - 1, err => {
+  //     if (err) {
+  //       return cb(err)
+  //     }
+  //     iterate(index + 1)
+  //   })
+  // }
+
+  let completed = 0
+  let hasErrors = false
+
+  function done(err) {
+    if (err) {
+      hasErrors = true
+      return cb(err)
+    }
+
+    if (++completed === links.length && !hasErrors) {
       return cb()
     }
 
-    spider(links[index], maxDepth - 1, err => {
-      if (err) {
-        return cb(err)
-      }
-      iterate(index + 1)
-    })
   }
 
-  iterate(0)
+  for (const link of links) {
+    spider(link, maxDepth - 1, done)
+  }
 }
 
+const spidering = new Set()
+
 export function spider(url, maxDepth, cb) {
+  if (spidering.has(url)) {
+    return process.nextTick(cb)
+  }
+  spidering.add(url)
+
   const filename = urlToFilename(url)
 
   exists(filename, (err, alreadyExists) => {
