@@ -10,6 +10,8 @@ export class TaskQueue extends EventEmitter {
 
   pushTask(task) {
     this.queue.push(task)
+
+    // function lose their context(the value of this) when they are passed as callbacks
     process.nextTick(this.next.bind(this))
     return this
   }

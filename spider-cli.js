@@ -1,5 +1,5 @@
 import { spider } from './spider.js'
-import { TaskQueue } from './taskQueue.js'
+import { TaskQueue } from './TaskQueue.js'
 
 const url = process.argv[2]
 const maxDepth = Number.parseInt(process.argv[3], 10) || 1
